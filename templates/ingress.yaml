@@ -29,6 +29,6 @@ spec:
   tls:
     - hosts:
         - {{ $.Values.global.appName }}{{- if $ing.nameSuffix }}-{{ $ing.nameSuffix }}{{- end }}.kube-prod-d1.mclacken.net
-      secretName: {{ $.Values.global.appName }}{{- if $ing.nameSuffix }}-{{ $ing.nameSuffix }}{{- end }}-ingress-certificate-secret
+      secretName: default-ingress-certificate-secret
 {{- end }}
 {{- end }}
