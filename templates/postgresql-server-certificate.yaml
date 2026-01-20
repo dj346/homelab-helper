@@ -10,6 +10,8 @@ metadata:
     app.kubernetes.io/managed-by: argocd
 spec:
   secretName: {{ .Values.global.appName }}-postgresql-server-certificate-secret
+  usages:
+    - server auth
   issuerRef:
     name: vault-cnpg-kube-prod-d1-issuer
     kind: ClusterIssuer
