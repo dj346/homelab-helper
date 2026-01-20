@@ -5,15 +5,16 @@ global:
 postgres:
   enable: true
 
-  description: ""
   imageName: ghcr.io/cloudnative-pg/postgresql:18.1@sha256:b53c340d52ae3c5e980147b2dee775e5a569ad2d4a4447a629bfc9bf048c7768
 
   instances: 2
 
   databaseName: ""
-  owner: ""
+  ownerName: ""
 
   postInitSQL: []
 
   storageSize: 450Mi
   walStorageSize: 1Gi
+  
+  BackupSchedule: "0 0 * * *"

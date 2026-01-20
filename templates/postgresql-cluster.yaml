@@ -39,9 +39,9 @@ spec:
     bootstrap:
         initdb:
             database: {{ default (printf "%sdb" .Values.global.appName) (.Values.postgres.databaseName | trim) }}
-            owner: {{ .Values.global.appName }}
+            owner: {{ default (printf "%suser" .Values.global.appName) (.Values.postgres.ownerName | trim) }}
             secret:
-                name: {{ .Values.global.appName }}-postgres-credentials-secret
+                name: {{ .Values.global.appName }}-postgresql-credentials-secret
             {{- if .Values.postgres.postInitSQL }}
             postInitSQL:
             {{ toYaml .Values.postgres.postInitSQL | nindent 2 }}
@@ -53,10 +53,10 @@ spec:
         #         name: backup-name
 
     certificates:
-        serverTLSSecret: {{ .Values.global.appName }}-postgres-server-certificate-secret
-        serverCASecret: {{ .Values.global.appName }}-postgres-server-certificate-secret
-        clientCASecret: {{ .Values.global.appName }}-postgres-client-certificate-secret
-        replicationTLSSecret: {{ .Values.global.appName }}-postgres-client-certificate-secret
+        serverTLSSecret: {{ .Values.global.appName }}-postgresql-server-certificate-secret
+        serverCASecret: {{ .Values.global.appName }}-postgresql-server-certificate-secret
+        clientCASecret: {{ .Values.global.appName }}-postgresql-client-certificate-secret
+        replicationTLSSecret: {{ .Values.global.appName }}-postgresql-client-certificate-secret
 
     storage:
         storageClass: longhorn-strict-local
@@ -72,10 +72,10 @@ spec:
             endpointURL: https://your-s3-endpoint
             s3Credentials:
                 accessKeyId:
-                    name: {{ .Values.global.appName }}-postgres-s3-credentials-secret
+                    name: {{ .Values.global.appName }}-postgresql-s3-credentials-secret
                     key: ACCESS_KEY_ID
                 secretAccessKey:
-                    name: {{ .Values.global.appName }}-postgres-s3-credentials-secret
+                    name: {{ .Values.global.appName }}-postgresql-s3-credentials-secret
                     key: ACCESS_SECRET_KEY
             wal:
                 compression: gzip
