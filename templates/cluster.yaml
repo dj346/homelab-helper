@@ -1,85 +1,114 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: {{ .Values.cluster.name }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "anisonarr-cnpg.labels" . | nindent 4 }}
-  {{- with .Values.cluster.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-spec:
-  description: {{ .Values.cluster.description | quote }}
-  imageName: {{ .Values.cluster.imageName | quote }}
-  imagePullPolicy: {{ .Values.cluster.imagePullPolicy }}
-
-  inheritedMetadata:
+    name: {{ .Values.global.appName }}-postgresql-cluster
+    namespace: {{ .Release.Namespace }}
     labels:
-      {{- include "anisonarr-cnpg.labels" . | nindent 6 }}
+        app.kubernetes.io/name: {{ .Values.global.appName }}
+        app.kubernetes.io/component: database
+        app.kubernetes.io/instance: {{ .Values.global.appName }}-{{ .Values.global.environment }}
+        app.kubernetes.io/managed-by: argocd
+    annotations:
+        description: {{ .Values.postgres.description }}
+spec:
+    description: {{ .Values.postgres.description }}
+    imageName: {{ .Values.postgres.imageName }}
+    imagePullPolicy: IfNotPresent
 
-  instances: {{ .Values.cluster.instances }}
-  primaryUpdateStrategy: {{ .Values.cluster.primaryUpdateStrategy }}
+    inheritedMetadata:
+        labels:
+            app.kubernetes.io/name: {{ .Values.global.appName }}
+            app.kubernetes.io/component: database
+            app.kubernetes.io/instance: {{ .Values.global.appName }}-{{ .Values.global.environment }}
+            app.kubernetes.io/managed-by: argocd
 
-  postgresql:
-    parameters:
-      {{- toYaml .Values.postgresql.parameters | nindent 6 }}
-    pg_hba:
-      {{- toYaml .Values.postgresql.pg_hba | nindent 6 }}
+    instances: 2
+    primaryUpdateStrategy: unsupervised
 
-  bootstrap:
-    initdb:
-      database: {{ .Values.bootstrap.database | quote }}
-      owner: {{ .Values.bootstrap.owner | quote }}
-      secret:
-        name: {{ .Values.bootstrap.secretName | quote }}
-      {{- with .Values.bootstrap.postInitSQL }}
-      postInitSQL:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+    postgresql:
+        parameters:
+            shared_buffers: 512MB
+            effective_cache_size: 1GB
+            max_connections: "100"
+            pg_stat_statements.max: "10000"
+            pg_stat_statements.track: all
+            auto_explain.log_min_duration: "5s"
+        pg_hba:
+            - host all all 10.244.0.0/16 md5
 
-  certificates:
-    serverTLSSecret: {{ .Values.certificates.serverTLSSecret | quote }}
-    serverCASecret: {{ .Values.certificates.serverCASecret | quote }}
-    clientCASecret: {{ .Values.certificates.clientCASecret | quote }}
-    replicationTLSSecret: {{ .Values.certificates.replicationTLSSecret | quote }}
+    bootstrap:
+        initdb:
+            database: {{ default (printf "%sdb" .Values.global.appName) (.Values.postgres.databaseName | trim) }}
+            owner: {{ .Values.global.appName }}
+            secret:
+                name: {{ .Values.global.appName }}-postgres-credentials-secret
+            {{- if .Values.postgres.postInitSQL }}
+            postInitSQL:
+            {{ toYaml .Values.postgres.postInitSQL | nindent 2 }}
+            {{- end }}
 
-  storage:
-    storageClass: {{ .Values.storage.storageClass | quote }}
-    size: {{ .Values.storage.size | quote }}
+        # For recovery scenarios, uncomment below:
+        # recovery:
+        #     backup:
+        #         name: backup-name
 
-  walStorage:
-    storageClass: {{ .Values.walStorage.storageClass | quote }}
-    size: {{ .Values.walStorage.size | quote }}
+    certificates:
+        serverTLSSecret: {{ .Values.global.appName }}-postgres-server-certificate-secret
+        serverCASecret: {{ .Values.global.appName }}-postgres-server-certificate-secret
+        clientCASecret: {{ .Values.global.appName }}-postgres-client-certificate-secret
+        replicationTLSSecret: {{ .Values.global.appName }}-postgres-client-certificate-secret
 
-  {{- if .Values.backup.enabled }}
-  backup:
-    barmanObjectStore:
-      destinationPath: {{ .Values.backup.destinationPath | quote }}
-      endpointURL: {{ .Values.backup.endpointURL | quote }}
-      s3Credentials:
-        accessKeyId:
-          name: {{ .Values.backup.s3Secret.name | quote }}
-          key: {{ .Values.backup.s3Secret.accessKeyIdKey | quote }}
-        secretAccessKey:
-          name: {{ .Values.backup.s3Secret.name | quote }}
-          key: {{ .Values.backup.s3Secret.secretAccessKeyKey | quote }}
-      wal:
-        compression: {{ .Values.backup.wal.compression | quote }}
-        encryption: {{ .Values.backup.wal.encryption | quote }}
-      data:
-        compression: {{ .Values.backup.data.compression | quote }}
-        encryption: {{ .Values.backup.data.encryption | quote }}
-        immediateCheckpoint: {{ .Values.backup.data.immediateCheckpoint }}
-        jobs: {{ .Values.backup.data.jobs }}
-    retentionPolicy: {{ .Values.backup.retentionPolicy | quote }}
-  {{- end }}
+    storage:
+        storageClass: longhorn-strict-local
+        size: {{ .Values.postgres.storageSize }}
 
-  affinity:
-    enablePodAntiAffinity: {{ .Values.affinity.enablePodAntiAffinity }}
-    topologyKey: {{ .Values.affinity.topologyKey | quote }}
+    walStorage:
+        storageClass: longhorn-strict-local
+        size: {{ .Values.postgres.walStorageSize }}
 
-  priorityClassName: {{ .Values.priorityClassName | quote }}
+    backup:
+        barmanObjectStore:
+            destinationPath: s3://anisonarr-backups/
+            endpointURL: https://your-s3-endpoint
+            s3Credentials:
+                accessKeyId:
+                    name: {{ .Values.global.appName }}-postgres-s3-credentials-secret
+                    key: ACCESS_KEY_ID
+                secretAccessKey:
+                    name: {{ .Values.global.appName }}-postgres-s3-credentials-secret
+                    key: ACCESS_SECRET_KEY
+            wal:
+                compression: gzip
+                encryption: AES256
+            data:
+                compression: gzip
+                encryption: AES256
+                immediateCheckpoint: true
+                jobs: 2
+        retentionPolicy: "14d"
 
-  topologySpreadConstraints:
-    {{- toYaml .Values.topologySpreadConstraints | nindent 4 }}
+    # resources:
+    #     requests:
+    #         cpu: "250m"
+    #         memory: "512Mi"
+    #     limits:
+    #         cpu: "1"
+    #         memory: "1Gi"
+
+    affinity:
+        enablePodAntiAffinity: true
+        topologyKey: topology.kubernetes.io/zone
+
+    priorityClassName: medium-priority
+
+    # monitoring:
+    #     enablePodMonitor: true
+
+    topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+              matchLabels:
+                  app.kubernetes.io/name: {{ .Values.global.appName }}
+                  app.kubernetes.io/component: database
