@@ -8,10 +8,7 @@ metadata:
         app.kubernetes.io/component: database
         app.kubernetes.io/instance: {{ .Values.global.appName }}-{{ .Values.global.environment }}
         app.kubernetes.io/managed-by: argocd
-    annotations:
-        description: {{ .Values.postgres.description }}
 spec:
-    description: {{ .Values.postgres.description }}
     imageName: {{ .Values.postgres.imageName }}
     imagePullPolicy: IfNotPresent
 
