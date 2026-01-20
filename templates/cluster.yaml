@@ -1,0 +1,85 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.cluster.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "anisonarr-cnpg.labels" . | nindent 4 }}
+  {{- with .Values.cluster.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  description: {{ .Values.cluster.description | quote }}
+  imageName: {{ .Values.cluster.imageName | quote }}
+  imagePullPolicy: {{ .Values.cluster.imagePullPolicy }}
+
+  inheritedMetadata:
+    labels:
+      {{- include "anisonarr-cnpg.labels" . | nindent 6 }}
+
+  instances: {{ .Values.cluster.instances }}
+  primaryUpdateStrategy: {{ .Values.cluster.primaryUpdateStrategy }}
+
+  postgresql:
+    parameters:
+      {{- toYaml .Values.postgresql.parameters | nindent 6 }}
+    pg_hba:
+      {{- toYaml .Values.postgresql.pg_hba | nindent 6 }}
+
+  bootstrap:
+    initdb:
+      database: {{ .Values.bootstrap.database | quote }}
+      owner: {{ .Values.bootstrap.owner | quote }}
+      secret:
+        name: {{ .Values.bootstrap.secretName | quote }}
+      {{- with .Values.bootstrap.postInitSQL }}
+      postInitSQL:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+  certificates:
+    serverTLSSecret: {{ .Values.certificates.serverTLSSecret | quote }}
+    serverCASecret: {{ .Values.certificates.serverCASecret | quote }}
+    clientCASecret: {{ .Values.certificates.clientCASecret | quote }}
+    replicationTLSSecret: {{ .Values.certificates.replicationTLSSecret | quote }}
+
+  storage:
+    storageClass: {{ .Values.storage.storageClass | quote }}
+    size: {{ .Values.storage.size | quote }}
+
+  walStorage:
+    storageClass: {{ .Values.walStorage.storageClass | quote }}
+    size: {{ .Values.walStorage.size | quote }}
+
+  {{- if .Values.backup.enabled }}
+  backup:
+    barmanObjectStore:
+      destinationPath: {{ .Values.backup.destinationPath | quote }}
+      endpointURL: {{ .Values.backup.endpointURL | quote }}
+      s3Credentials:
+        accessKeyId:
+          name: {{ .Values.backup.s3Secret.name | quote }}
+          key: {{ .Values.backup.s3Secret.accessKeyIdKey | quote }}
+        secretAccessKey:
+          name: {{ .Values.backup.s3Secret.name | quote }}
+          key: {{ .Values.backup.s3Secret.secretAccessKeyKey | quote }}
+      wal:
+        compression: {{ .Values.backup.wal.compression | quote }}
+        encryption: {{ .Values.backup.wal.encryption | quote }}
+      data:
+        compression: {{ .Values.backup.data.compression | quote }}
+        encryption: {{ .Values.backup.data.encryption | quote }}
+        immediateCheckpoint: {{ .Values.backup.data.immediateCheckpoint }}
+        jobs: {{ .Values.backup.data.jobs }}
+    retentionPolicy: {{ .Values.backup.retentionPolicy | quote }}
+  {{- end }}
+
+  affinity:
+    enablePodAntiAffinity: {{ .Values.affinity.enablePodAntiAffinity }}
+    topologyKey: {{ .Values.affinity.topologyKey | quote }}
+
+  priorityClassName: {{ .Values.priorityClassName | quote }}
+
+  topologySpreadConstraints:
+    {{- toYaml .Values.topologySpreadConstraints | nindent 4 }}

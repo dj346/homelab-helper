@@ -1,0 +1,80 @@
+labels:
+  name: anisonarr
+  component: database
+  instance: anisonarr-prod-d1
+  managedBy: argocd
+
+cluster:
+  name: anisonarr-postgres-cluster
+  description: "Production PostgreSQL cluster for Anisonarr"
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.1@sha256:b53c340d52ae3c5e980147b2dee775e5a569ad2d4a4447a629bfc9bf048c7768
+  imagePullPolicy: IfNotPresent
+  primaryUpdateStrategy: unsupervised
+  instances: 2
+  annotations:
+    description: "CloudNative PostgreSQL Cluster for Anisonarr Application"
+
+postgresql:
+  parameters:
+    shared_buffers: 512MB
+    effective_cache_size: 1GB
+    max_connections: "100"
+    pg_stat_statements.max: "10000"
+    pg_stat_statements.track: all
+    auto_explain.log_min_duration: "5s"
+  pg_hba:
+    - host all all 10.244.0.0/16 md5
+
+bootstrap:
+  database: sonarr-main
+  owner: anisonarr
+  secretName: anisonarr-postgres-credentials-secret
+  postInitSQL:
+    - 'CREATE DATABASE "sonarr-log" OWNER anisonarr'
+
+certificates:
+  serverTLSSecret: anisonarr-postgres-server-certificate-secret
+  serverCASecret: anisonarr-postgres-server-certificate-secret
+  clientCASecret: anisonarr-postgres-client-certificate-secret
+  replicationTLSSecret: anisonarr-postgres-client-certificate-secret
+
+storage:
+  storageClass: longhorn-strict-local
+  size: 450Mi
+
+walStorage:
+  storageClass: longhorn-strict-local
+  size: 1Gi
+
+backup:
+  enabled: true
+  destinationPath: s3://anisonarr-backups/
+  endpointURL: https://your-s3-endpoint
+  s3Secret:
+    name: backup-creds
+    accessKeyIdKey: ACCESS_KEY_ID
+    secretAccessKeyKey: ACCESS_SECRET_KEY
+  wal:
+    compression: gzip
+    encryption: AES256
+  data:
+    compression: gzip
+    encryption: AES256
+    immediateCheckpoint: true
+    jobs: 2
+  retentionPolicy: "14d"
+
+affinity:
+  enablePodAntiAffinity: true
+  topologyKey: topology.kubernetes.io/zone
+
+priorityClassName: medium-priority
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: anisonarr
+        app.kubernetes.io/component: database
