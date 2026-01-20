@@ -12,7 +12,6 @@ metadata:
     app.kubernetes.io/instance: {{ $.Values.global.appName }}-{{ $.Values.global.environment }}
     app.kubernetes.io/managed-by: argocd
   annotations:
-    cert-manager.io/cluster-issuer: cloudflare-clusterissuer
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
 spec:
   rules:
@@ -30,5 +29,6 @@ spec:
     - hosts:
         - {{ $.Values.global.appName }}{{- if $ing.nameSuffix }}-{{ $ing.nameSuffix }}{{- end }}.kube-prod-d1.mclacken.net
       secretName: all-applications-certificate-secret
+      
 {{- end }}
 {{- end }}
