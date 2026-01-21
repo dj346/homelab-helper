@@ -20,12 +20,12 @@ postgresql:
   
   backupSchedule: "0 0 * * *"
 
-  ingresses: []
+ingresses: []
 #   - nameSuffix: ""
 #     serviceName: ""
 #     portName: ""
 
-  services: []
-    # - nameSuffix: ""
-    #   portName: ""
-    #   port: 5302
+services: []
+# - nameSuffix: ""
+#   portName: ""
+#   port: 5302
