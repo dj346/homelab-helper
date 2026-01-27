@@ -1,0 +1,134 @@
+{{- if .Values.statefulsets}}
+{{- range $i, $sts := .Values.statefulsets}}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $.Values.global.appName }}{{- if $sts.nameSuffix }}-{{ $sts.nameSuffix }}{{- end }}-statefulset
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $.Values.global.appName }}
+    app.kubernetes.io/instance: {{ $.Values.global.appName }}-{{ $.Values.global.environment }}
+    app.kubernetes.io/component: program
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  serviceName: anisonarr-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $.Values.global.appName }}
+      app.kubernetes.io/instance: {{ $.Values.global.appName }}-{{ $.Values.global.environment }}
+      app.kubernetes.io/component: program
+      app.kubernetes.io/managed-by: argocd
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $.Values.global.appName }}
+        app.kubernetes.io/instance: {{ $.Values.global.appName }}-{{ $.Values.global.environment }}
+        app.kubernetes.io/component: program
+        app.kubernetes.io/managed-by: argocd
+    spec:
+      {{- if $sts.containers }}
+      containers:
+      {{- range $j, $container := $sts.containers }}
+        - name: {{ $.Values.global.appName }}{{- if $container.nameSuffix }}-{{ $container.nameSuffix }}{{- end }}
+          image: {{ $container.image }}
+          imagePullPolicy: IfNotPresent
+
+          {{- if $container.securityContext }}
+          securityContext:
+{{ toYaml $container.securityContext | nindent 12 }}
+          {{- end }}
+
+          {{- if $container.env}}
+          env:
+{{ toYaml $container.env | nindent 12 }}
+          {{- end }}
+
+          {{- if $container.ports }}
+          ports:
+{{ toYaml $container.ports | nindent 12 }}
+          {{- end }}
+            
+          {{ - if $container.startupProbeHttpGet }}
+          startupProbe:
+            {{- if $container.startupProbeHttpGet }}
+            httpGet:
+{{ toYaml $container.startupProbeHttpGet | nindent 14 }}
+            {{- end }}
+            failureThreshold: 10
+            periodSeconds: 5
+          {{- end }}
+
+          {{- if $container.readinessProbeHttpGet }}
+          readinessProbe:
+            {{- if $container.readinessProbeHttpGet }}
+            httpGet:
+{{ toYaml $container.readinessProbeHttpGet | nindent 14 }}
+            {{- end }}
+            initialDelaySeconds: 5
+            periodSeconds: 2
+          {{- end }}
+
+          {{- if $container.livenessProbeHttpGet }}
+          livenessProbe:
+            {{- if $container.livenessProbeHttpGet }}
+            httpGet:
+{{ toYaml $container.livenessProbeHttpGet | nindent 14 }}
+            {{- end }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          {{- end }}
+
+          # resources:
+          #   requests:
+          #     memory: "256Mi"
+          #     cpu: "250m"
+          #   limits:
+          #     memory: "512Mi"
+          #     cpu: "500m"
+
+          volumeMounts:
+            - name: anisonarr-config
+              mountPath: /config
+            - name: data
+              mountPath: /data
+      {{- end }}
+      {{- end }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - anisonarr
+              topologyKey: kubernetes.io/hostname
+
+      priorityClassName: low-priority
+
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+
+      volumes:
+        - name: data
+          nfs:
+            server: 10.15.21.5
+            path: /mnt/user/video/
+  volumeClaimTemplates:
+    - metadata:
+        name: anisonarr-config
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 450Mi
+{{- end}}
+{{- end}}
