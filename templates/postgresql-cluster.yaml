@@ -62,30 +62,30 @@ spec:
         storageClass: longhorn-strict-local
         size: {{ .Values.postgresql.storageSize }}
 
-    walStorage:
-        storageClass: longhorn-strict-local
-        size: {{ .Values.postgresql.walStorageSize }}
+    # walStorage:
+    #     storageClass: longhorn-strict-local
+    #     size: {{ .Values.postgresql.walStorageSize }}
 
-    backup:
-        barmanObjectStore:
-            destinationPath: s3://anisonarr-backups/
-            endpointURL: https://your-s3-endpoint
-            s3Credentials:
-                accessKeyId:
-                    name: {{ .Values.global.appName }}-postgresql-s3-credentials-secret
-                    key: ACCESS_KEY_ID
-                secretAccessKey:
-                    name: {{ .Values.global.appName }}-postgresql-s3-credentials-secret
-                    key: ACCESS_SECRET_KEY
-            wal:
-                compression: gzip
-                encryption: AES256
-            data:
-                compression: gzip
-                encryption: AES256
-                immediateCheckpoint: true
-                jobs: 2
-        retentionPolicy: "14d"
+    # backup:
+    #     barmanObjectStore:
+    #         destinationPath: s3://anisonarr-backups/
+    #         endpointURL: https://your-s3-endpoint
+    #         s3Credentials:
+    #             accessKeyId:
+    #                 name: {{ .Values.global.appName }}-postgresql-s3-credentials-secret
+    #                 key: ACCESS_KEY_ID
+    #             secretAccessKey:
+    #                 name: {{ .Values.global.appName }}-postgresql-s3-credentials-secret
+    #                 key: ACCESS_SECRET_KEY
+    #         wal:
+    #             compression: gzip
+    #             encryption: AES256
+    #         data:
+    #             compression: gzip
+    #             encryption: AES256
+    #             immediateCheckpoint: true
+    #             jobs: 2
+    #     retentionPolicy: "14d"
 
     # resources:
     #     requests:
